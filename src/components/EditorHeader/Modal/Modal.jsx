@@ -351,6 +351,8 @@ export default function Modal({
         return <Language />;
       case MODAL.SHARE:
         return <Share title={title} />;
+      case MODAL.GENERATION_CONFIG:
+        return <>代码生成</>;
       default:
         return <></>;
     }

@@ -92,6 +92,7 @@ export const MODAL = {
   LANGUAGE: 10,
   SHARE: 11,
   PREVIEW: 12,
+  GENERATION_CONFIG: 13, // 代码生成配置
 };
 
 export const STATUS = {

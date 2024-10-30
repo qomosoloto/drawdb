@@ -31,6 +31,7 @@ const zh = {
     undo: "撤销",
     redo: "恢复",
     clear: "清除",
+    code_generation: "代码生成",
     are_you_sure_clear: "确定要清除图表吗？此操作不可逆转。",
     cut: "剪切",
     copy: "复制",
