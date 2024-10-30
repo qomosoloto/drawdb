@@ -300,7 +300,7 @@ export default function Modal({
           <>
             <CodeMirror
               value={exportData.data}
-              height="360px"
+              height="420px"
               extensions={languageExtension[exportData.extension]}
               onChange={() => { }}
               editable={false}

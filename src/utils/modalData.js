@@ -38,6 +38,8 @@ export const getModalWidth = (modal) => {
     case MODAL.OPEN:
     case MODAL.NEW:
       return 740;
+    case MODAL.PREVIEW:
+      return 800;
     default:
       return 600;
   }

@@ -1,0 +1,15 @@
+services:
+  drawdb:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: drawdb
+    restart: always
+    ports:
+      - 5173:80
+    networks:
+      - default
+
+networks:
+  default:
+    driver: bridge
