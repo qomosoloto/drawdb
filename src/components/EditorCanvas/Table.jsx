@@ -5,6 +5,8 @@ import {
   tableFieldHeight,
   tableHeaderHeight,
   tableColorStripHeight,
+  DB,
+  MODAL,
 } from "../../data/constants";
 import {
   IconEdit,
@@ -12,34 +14,47 @@ import {
   IconMinus,
   IconDeleteStroked,
   IconKeyStroked,
+  IconEyeOpened,
 } from "@douyinfe/semi-icons";
+import Modal from "../EditorHeader/Modal/Modal";
 import { Popover, Tag, Button, SideSheet } from "@douyinfe/semi-ui";
-import { useLayout, useSettings, useDiagram, useSelect } from "../../hooks";
+import { useLayout, useSettings, useDiagram, useSelect, useEnums, useTypes } from "../../hooks";
 import TableInfo from "../EditorSidePanel/TablesTab/TableInfo";
 import { useTranslation } from "react-i18next";
 import { dbToTypes } from "../../data/datatypes";
 import { isRtl } from "../../i18n/utils/rtl";
 import i18n from "../../i18n/i18n";
+import { exportSQL } from "../../utils/exportSQL";
 
 export default function Table(props) {
   const [hoveredField, setHoveredField] = useState(-1);
-  const { database } = useDiagram();
+  const { database, tables, relationships } = useDiagram();
+  const { enums, setEnums, deleteEnum, addEnum, updateEnum } = useEnums();
+  const { types, addType, deleteType, updateType, setTypes } = useTypes();
+  const [exportData, setExportData] = useState({
+    data: null,
+    filename: `预览SQL`,
+    extension: "",
+  });
   const {
     tableData,
     onPointerDown,
     setHoveredTable,
     handleGripField,
     setLinkingLine,
+    setId,
   } = props;
   const { layout } = useLayout();
   const { deleteTable, deleteField } = useDiagram();
   const { settings } = useSettings();
   const { t } = useTranslation();
   const { selectedElement, setSelectedElement } = useSelect();
-
+  const [modal, setModal] = useState(MODAL.NONE);
   const height =
     tableData.fields.length * tableFieldHeight + tableHeaderHeight + 7;
+  // 双击表会 打开左侧的编辑器
   const openEditor = () => {
+    console.log("=====openEditor=====");
     if (!layout.sidebar) {
       setSelectedElement((prev) => ({
         ...prev,
@@ -62,6 +77,27 @@ export default function Table(props) {
     }
   };
 
+  // 预览生成的SQL语句
+  const openSqlPreview = () => {
+    console.log("oepn sql preview tableData", tableData);
+    if (database === DB.GENERIC) return;
+    setModal(MODAL.PREVIEW);
+    const src = exportSQL({
+      tables: tables,
+      references: relationships,
+      types: types,
+      database: database,
+      enums: enums,
+    });
+    console.log("====> exported sql src:", src);
+    setExportData((prev) => ({
+      ...prev,
+      data: src,
+      extension: "sql",
+    }));
+
+  }
+
   return (
     <>
       <foreignObject
@@ -76,16 +112,14 @@ export default function Table(props) {
         <div
           onDoubleClick={openEditor}
           className={`border-2 hover:border-dashed hover:border-blue-500
-               select-none rounded-lg w-full ${
-                 settings.mode === "light"
-                   ? "bg-zinc-100 text-zinc-800"
-                   : "bg-zinc-800 text-zinc-200"
-               } ${
-                 selectedElement.id === tableData.id &&
-                 selectedElement.element === ObjectType.TABLE
-                   ? "border-solid border-blue-500"
-                   : "border-zinc-500"
-               }`}
+               select-none rounded-lg w-full ${settings.mode === "light"
+              ? "bg-zinc-100 text-zinc-800"
+              : "bg-zinc-800 text-zinc-200"
+            } ${selectedElement.id === tableData.id &&
+              selectedElement.element === ObjectType.TABLE
+              ? "border-solid border-blue-500"
+              : "border-zinc-500"
+            }`}
           style={{ direction: "ltr" }}
         >
           <div
@@ -93,9 +127,8 @@ export default function Table(props) {
             style={{ backgroundColor: tableData.color }}
           />
           <div
-            className={`overflow-hidden font-bold h-[40px] flex justify-between items-center border-b border-gray-400 ${
-              settings.mode === "light" ? "bg-zinc-200" : "bg-zinc-900"
-            }`}
+            className={`overflow-hidden font-bold h-[40px] flex justify-between items-center border-b border-gray-400 ${settings.mode === "light" ? "bg-zinc-200" : "bg-zinc-900"
+              }`}
           >
             <div className=" px-3 overflow-hidden text-ellipsis whitespace-nowrap">
               {tableData.name}
@@ -112,6 +145,17 @@ export default function Table(props) {
                   }}
                   onClick={openEditor}
                 />
+                <Button
+                  icon={<IconEyeOpened />}
+                  size="small"
+                  theme="solid"
+                  style={
+                    {
+                      backgroundColor: "#2f68adb3",
+                      marginRight: "6px",
+                    }}
+                  onClick={openSqlPreview}
+                />
                 <Popover
                   key={tableData.key}
                   content={
@@ -126,9 +170,8 @@ export default function Table(props) {
                       </div>
                       <div>
                         <strong
-                          className={`${
-                            tableData.indices.length === 0 ? "" : "block"
-                          }`}
+                          className={`${tableData.indices.length === 0 ? "" : "block"
+                            }`}
                         >
                           {t("indices")}:
                         </strong>{" "}
@@ -139,11 +182,10 @@ export default function Table(props) {
                             {tableData.indices.map((index, k) => (
                               <div
                                 key={k}
-                                className={`flex items-center my-1 px-2 py-1 rounded ${
-                                  settings.mode === "light"
-                                    ? "bg-gray-100"
-                                    : "bg-zinc-800"
-                                }`}
+                                className={`flex items-center my-1 px-2 py-1 rounded ${settings.mode === "light"
+                                  ? "bg-gray-100"
+                                  : "bg-zinc-800"
+                                  }`}
                               >
                                 <i className="fa-solid fa-thumbtack me-2 mt-1 text-slate-500"></i>
                                 <div>
@@ -202,8 +244,8 @@ export default function Table(props) {
                         {e.type +
                           ((dbToTypes[database][e.type].isSized ||
                             dbToTypes[database][e.type].hasPrecision) &&
-                          e.size &&
-                          e.size !== ""
+                            e.size &&
+                            e.size !== ""
                             ? "(" + e.size + ")"
                             : "")}
                       </p>
@@ -276,17 +318,26 @@ export default function Table(props) {
           <TableInfo data={tableData} />
         </div>
       </SideSheet>
+      <Modal
+        modal={modal}
+        exportData={exportData}
+        setExportData={setExportData}
+        title="预览SQL"
+        setTitle={() => { }}
+        setDiagramId={setId}
+        setModal={setModal}
+        importDb=""
+      />
     </>
   );
 
   function field(fieldData, index) {
     return (
       <div
-        className={`${
-          index === tableData.fields.length - 1
-            ? ""
-            : "border-b border-gray-400"
-        } group h-[36px] px-2 py-1 flex justify-between items-center gap-1 w-full overflow-hidden`}
+        className={`${index === tableData.fields.length - 1
+          ? ""
+          : "border-b border-gray-400"
+          } group h-[36px] px-2 py-1 flex justify-between items-center gap-1 w-full overflow-hidden`}
         onPointerEnter={(e) => {
           if (!e.isPrimary) return;
 
@@ -308,9 +359,8 @@ export default function Table(props) {
         }}
       >
         <div
-          className={`${
-            hoveredField === index ? "text-zinc-400" : ""
-          } flex items-center gap-2 overflow-hidden`}
+          className={`${hoveredField === index ? "text-zinc-400" : ""
+            } flex items-center gap-2 overflow-hidden`}
         >
           <button
             className="flex-shrink-0 w-[10px] h-[10px] bg-[#2f68adcc] rounded-full"
@@ -362,8 +412,8 @@ export default function Table(props) {
                 {fieldData.type +
                   ((dbToTypes[database][fieldData.type].isSized ||
                     dbToTypes[database][fieldData.type].hasPrecision) &&
-                  fieldData.size &&
-                  fieldData.size !== ""
+                    fieldData.size &&
+                    fieldData.size !== ""
                     ? "(" + fieldData.size + ")"
                     : "")}
               </span>

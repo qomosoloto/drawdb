@@ -24,6 +24,7 @@ const zh = {
     import_from_source: "导入 SQL 源代码",
     export_as: "导出为",
     export_source: "导出为 SQL 源代码",
+    preview: "预览",
     models: "模型",
     exit: "退出",
     edit: "编辑",

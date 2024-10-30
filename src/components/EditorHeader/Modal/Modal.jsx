@@ -150,7 +150,7 @@ export default function Modal({
     } catch (err) {
       let message = err.message;
       if (err.location) {
-          message = err.name + " [Ln " + err.location.start.line + ", Col " + err.location.start.column + "]: " + err.message;
+        message = err.name + " [Ln " + err.location.start.line + ", Col " + err.location.start.column + "]: " + err.message;
       }
 
       setError({
@@ -237,6 +237,13 @@ export default function Modal({
         setModal(MODAL.NONE);
         createNewDiagram(selectedTemplateId);
         return;
+      case MODAL.PREVIEW:
+        setModal(MODAL.NONE);
+        navigator.clipboard
+          .writeText(exportData.data)
+          .catch(() => Toast.error(t("oops_smth_went_wrong")));
+
+        return;
       default:
         setModal(MODAL.NONE);
         return;
@@ -288,6 +295,20 @@ export default function Modal({
             onChange={(v) => setSaveAsTitle(v)}
           />
         );
+      case MODAL.PREVIEW:
+        return (
+          <>
+            <CodeMirror
+              value={exportData.data}
+              height="360px"
+              extensions={languageExtension[exportData.extension]}
+              onChange={() => { }}
+              editable={false}
+              theme={settings.mode === "dark" ? vscodeDark : githubLight}
+            />
+
+          </>
+        );
       case MODAL.CODE:
       case MODAL.IMG:
         if (exportData.data !== "" || exportData.data) {
@@ -300,7 +321,7 @@ export default function Modal({
                   value={exportData.data}
                   height="360px"
                   extensions={languageExtension[exportData.extension]}
-                  onChange={() => {}}
+                  onChange={() => { }}
                   editable={false}
                   theme={settings.mode === "dark" ? vscodeDark : githubLight}
                 />
@@ -371,6 +392,7 @@ export default function Modal({
             (error.type === STATUS.ERROR || !importData)) ||
           (modal === MODAL.RENAME && title === "") ||
           ((modal === MODAL.IMG || modal === MODAL.CODE) && !exportData.data) ||
+          (modal === MODAL.PREVIEW && !exportData.data) ||
           (modal === MODAL.SAVEAS && saveAsTitle === "") ||
           (modal === MODAL.IMPORT_SRC && importSource.src === ""),
         hidden: modal === MODAL.SHARE,

@@ -25,6 +25,8 @@ export const getModalTitle = (modal) => {
       return i18n.t("language");
     case MODAL.SHARE:
       return i18n.t("share");
+    case MODAL.PREVIEW:
+      return i18n.t("preview");
     default:
       return "";
   }
@@ -59,6 +61,8 @@ export const getOkText = (modal) => {
       return i18n.t("create");
     case MODAL.SHARE:
       return i18n.t("share");
+    case MODAL.PREVIEW:
+      return i18n.t("copy");
     default:
       return i18n.t("confirm");
   }

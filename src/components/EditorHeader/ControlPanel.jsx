@@ -251,9 +251,9 @@ export default function ControlPanel({
             indices: tables[a.tid].indices.map((index) =>
               index.id === a.iid
                 ? {
-                    ...index,
-                    ...a.undo,
-                  }
+                  ...index,
+                  ...a.undo,
+                }
                 : index,
             ),
           });
@@ -439,9 +439,9 @@ export default function ControlPanel({
             indices: tables[a.tid].indices.map((index) =>
               index.id === a.iid
                 ? {
-                    ...index,
-                    ...a.redo,
-                  }
+                  ...index,
+                  ...a.redo,
+                }
                 : index,
             ),
           });
@@ -836,6 +836,8 @@ export default function ControlPanel({
         },
       },
       export_source: {
+        // conditionlly renders chi ldren based on database type
+        // ... spread operator --> spreading an object into the parent object if the condition database=== DB.GENERIC is true.
         ...(database === DB.GENERIC && {
           children: [
             {
@@ -920,6 +922,7 @@ export default function ControlPanel({
             },
           ],
         }),
+        /// if the database is not generic then it will render the function
         function: () => {
           if (database === DB.GENERIC) return;
           setModal(MODAL.CODE);
@@ -1087,7 +1090,7 @@ export default function ControlPanel({
             },
           },
         ],
-        function: () => {},
+        function: () => { },
       },
       exit: {
         function: () => {
@@ -1267,7 +1270,7 @@ export default function ControlPanel({
             },
           },
         ],
-        function: () => {},
+        function: () => { },
       },
       zoom_in: {
         function: zoomIn,
