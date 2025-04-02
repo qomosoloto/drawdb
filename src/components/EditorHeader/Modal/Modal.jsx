@@ -303,20 +303,6 @@ export default function Modal({
             onChange={(v) => setSaveAsTitle(v)}
           />
         );
-      case MODAL.PREVIEW:
-        return (
-          <>
-            <CodeMirror
-              value={exportData.data}
-              height="420px"
-              extensions={languageExtension[exportData.extension]}
-              onChange={() => { }}
-              editable={false}
-              theme={settings.mode === "dark" ? vscodeDark : githubLight}
-            />
-
-          </>
-        );
       case MODAL.CODE:
       case MODAL.IMG:
         if (exportData.data !== "" || exportData.data) {
