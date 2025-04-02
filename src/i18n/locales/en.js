@@ -40,6 +40,7 @@ const en = {
     duplicate: "Duplicate",
     delete: "Delete",
     copy_as_image: "Copy as image",
+    copy_current_table_as_image: "Copy current table as image",
     view: "View",
     header: "Menubar",
     sidebar: "Sidebar",

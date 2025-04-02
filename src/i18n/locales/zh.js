@@ -41,6 +41,7 @@ const zh = {
     duplicate: "克隆",
     delete: "删除",
     copy_as_image: "复制画布为图片",
+    copy_current_table_as_image: "复制前表格为图片",
     view: "视图",
     header: "菜单栏",
     sidebar: "侧边栏",

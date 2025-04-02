@@ -303,6 +303,12 @@ export default function Modal({
             onChange={(v) => setSaveAsTitle(v)}
           />
         );
+      case MODAL.PREVIEW:
+        return (
+          <>
+            <Code value={exportData.data} language={exportData.extension} />
+          </>
+        );
       case MODAL.CODE:
       case MODAL.IMG:
         if (exportData.data !== "" || exportData.data) {
@@ -340,7 +346,7 @@ export default function Modal({
         return <Share title={title} setModal={setModal} />;
       case MODAL.GENERATION_CONFIG:
         return <>代码生成</>;
-        
+
       default:
         return <></>;
     }
