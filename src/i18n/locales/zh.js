@@ -32,6 +32,7 @@ const zh = {
     redo: "恢复",
     clear: "清除",
     code_generation: "代码生成",
+    import_from_db: "从数据库导入",
     are_you_sure_clear: "确定要清除图表吗？此操作不可逆转。",
     cut: "剪切",
     copy: "复制",
