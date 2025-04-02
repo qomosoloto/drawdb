@@ -15,7 +15,6 @@ import {
   IconDeleteStroked,
   IconKeyStroked,
   IconEyeOpened,
-  IconCode,
 } from "@douyinfe/semi-icons";
 import Modal from "../EditorHeader/Modal/Modal";
 import { Popover, Tag, Button, SideSheet } from "@douyinfe/semi-ui";
@@ -53,11 +52,6 @@ export default function Table(props) {
   const [modal, setModal] = useState(MODAL.NONE);
   const height =
     tableData.fields.length * tableFieldHeight + tableHeaderHeight + 7;
-
-  const openGenerationConfig = (tableId) => {
-    console.log("openGenerationConfig tableId", tableId);
-    setModal(MODAL.GENERATION_CONFIG);
-  }
   // 双击表会 打开左侧的编辑器
   const openEditor = () => {
     console.log("=====openEditor=====");
@@ -206,13 +200,6 @@ export default function Table(props) {
                           </div>
                         )}
                       </div>
-                      <Button
-                        icon={<IconCode />}
-                        type="tertiary"
-                        block
-                        style={{ marginTop: "8px" }}
-                        onClick={() => openGenerationConfig(tableData.id)}
-                      />
                       <Button
                         icon={<IconDeleteStroked />}
                         type="danger"

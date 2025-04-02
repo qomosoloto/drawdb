@@ -38,11 +38,19 @@ export function fromPostgres(ast, diagramDb = DB.GENERIC) {
           if (d.resource === "column") {
             field.name = d.column.column.expr.value;
 
-            let type = d.definition.dataType;
-            if (!dbToTypes[diagramDb][type]) {
+            let type = types.find((t) =>
+              new RegExp(`^(${t.name}|"${t.name}")$`).test(
+                d.definition.dataType,
+              ),
+            )?.name;
+            type ??= enums.find((t) =>
+              new RegExp(`^(${t.name}|"${t.name}")$`).test(
+                d.definition.dataType,
+              ),
+            )?.name;
+            if (!type && !dbToTypes[diagramDb][d.definition.dataType])
               type = affinity[diagramDb][type];
-            }
-            field.type = type;
+            field.type = type || d.definition.dataType;
 
             if (d.definition.expr && d.definition.expr.type === "expr_list") {
               field.values = d.definition.expr.value.map((v) => v.value);
@@ -78,6 +86,8 @@ export function fromPostgres(ast, diagramDb = DB.GENERIC) {
                 }
               } else if (d.default_val.value.type === "null") {
                 defaultValue = "NULL";
+              } else if (d.default_val.value.type === "cast") {
+                defaultValue = d.default_val.value.expr.value;
               } else {
                 defaultValue = d.default_val.value.value.toString();
               }
@@ -100,7 +110,7 @@ export function fromPostgres(ast, diagramDb = DB.GENERIC) {
             if (d.constraint_type === "primary key") {
               d.definition.forEach((c) => {
                 table.fields.forEach((f) => {
-                  if (f.name === c.column && !f.primary) {
+                  if (f.name === c.column.expr.value && !f.primary) {
                     f.primary = true;
                   }
                 });
@@ -127,7 +137,8 @@ export function fromPostgres(ast, diagramDb = DB.GENERIC) {
               );
               if (startFieldId === -1) return;
 
-              relationship.name = startTable + "_" + startField + "_fk";
+              relationship.name =
+                "fk_" + startTable + "_" + startField + "_" + endTable;
               relationship.startTableId = startTableId;
               relationship.endTableId = endTableId;
               relationship.endFieldId = endFieldId;
@@ -197,7 +208,8 @@ export function fromPostgres(ast, diagramDb = DB.GENERIC) {
             );
             if (startFieldId === -1) return;
 
-            relationship.name = startTable + "_" + startField + "_fk";
+            relationship.name =
+              "fk_" + startTable + "_" + startField + "_" + endTable;
             relationship.startTableId = startTableId;
             relationship.startFieldId = startFieldId;
             relationship.endTableId = endTableId;
@@ -278,7 +290,8 @@ export function fromPostgres(ast, diagramDb = DB.GENERIC) {
       e.expr.forEach((expr) => {
         if (
           expr.action === "add" &&
-          expr.create_definitions.constraint_type.toLowerCase() === "foreign key"
+          expr.create_definitions.constraint_type.toLowerCase() ===
+            "foreign key"
         ) {
           const relationship = {};
           const startTable = e.table[0].table;
@@ -323,7 +336,8 @@ export function fromPostgres(ast, diagramDb = DB.GENERIC) {
           );
           if (startFieldId === -1) return;
 
-          relationship.name = startTable + "_" + startField + "_fk";
+          relationship.name =
+            "fk_" + startTable + "_" + startField + "_" + endTable;
           relationship.startTableId = startTableId;
           relationship.startFieldId = startFieldId;
           relationship.endTableId = endTableId;

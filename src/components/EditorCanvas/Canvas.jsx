@@ -3,6 +3,7 @@ import {
   Action,
   Cardinality,
   Constraint,
+  darkBgTheme,
   ObjectType,
 } from "../../data/constants";
 import { Toast } from "@douyinfe/semi-ui";
@@ -431,9 +432,9 @@ export default function Canvas() {
       cardinality: Cardinality.ONE_TO_ONE,
       updateConstraint: Constraint.NONE,
       deleteConstraint: Constraint.NONE,
-      name: `${tables[linkingLine.startTableId].name}_${
+      name: `fk_${tables[linkingLine.startTableId].name}_${
         tables[linkingLine.startTableId].fields[linkingLine.startFieldId].name
-      }_fk`,
+      }_${tables[hoveredTable.tableId].name}`,
       id: relationships.length,
     };
     delete newRelationship.startX;
@@ -449,7 +450,7 @@ export default function Canvas() {
     (e) => {
       e.preventDefault();
 
-      if (e.ctrlKey) {
+      if (e.ctrlKey || e.metaKey) {
         // How "eager" the viewport is to
         // center the cursor's coordinates
         const eagernessFactor = 0.05;
@@ -493,12 +494,12 @@ export default function Canvas() {
   const theme = localStorage.getItem("theme");
 
   return (
-    <div className="flex-grow h-full touch-none" id="canvas">
+    <div className="grow h-full touch-none" id="canvas">
       <div
         className="w-full h-full"
         style={{
           cursor: pointer.style,
-          backgroundColor: theme === "dark" ? "rgba(22, 22, 26, 1)" : "white",
+          backgroundColor: theme === "dark" ? darkBgTheme : "white",
         }}
       >
         {settings.showGrid && (
@@ -586,7 +587,7 @@ export default function Canvas() {
         </svg>
       </div>
       {settings.showDebugCoordinates && (
-        <div className="fixed flex flex-col flex-wrap gap-6 bg-[rgba(var(--semi-grey-1),var(--tw-bg-opacity))]/40 border border-color bottom-4 right-4 p-4 rounded-xl backdrop-blur-sm pointer-events-none select-none">
+        <div className="fixed flex flex-col flex-wrap gap-6 bg-[rgba(var(--semi-grey-1),var(--tw-bg-opacity))]/40 border border-color bottom-4 right-4 p-4 rounded-xl backdrop-blur-xs pointer-events-none select-none">
           <table className="table-auto grow">
             <thead>
               <tr>

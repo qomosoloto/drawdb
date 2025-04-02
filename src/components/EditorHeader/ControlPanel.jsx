@@ -20,17 +20,18 @@ import {
   InputNumber,
   Tooltip,
   Spin,
+  Tag,
   Toast,
   Popconfirm,
 } from "@douyinfe/semi-ui";
 import { toPng, toJpeg, toSvg } from "html-to-image";
-import { saveAs } from "file-saver";
 import {
   jsonToMySQL,
   jsonToPostgreSQL,
   jsonToSQLite,
   jsonToMariaDB,
   jsonToSQLServer,
+  jsonToOracleSQL,
 } from "../../utils/exportSQL/generic";
 import {
   ObjectType,
@@ -40,6 +41,7 @@ import {
   MODAL,
   SIDESHEET,
   DB,
+  IMPORT_FROM,
 } from "../../data/constants";
 import jsPDF from "jspdf";
 import { useHotkeys } from "react-hotkeys-hook";
@@ -73,6 +75,8 @@ import { jsonToMermaid } from "../../utils/exportAs/mermaid";
 import { isRtl } from "../../i18n/utils/rtl";
 import { jsonToDocumentation } from "../../utils/exportAs/documentation";
 import { IdContext } from "../Workspace";
+import { socials } from "../../data/socials";
+import { toDBML } from "../../utils/exportAs/dbml";
 
 export default function ControlPanel({
   diagramId,
@@ -90,6 +94,7 @@ export default function ControlPanel({
     filename: `${title}_${new Date().toISOString()}`,
     extension: "",
   });
+  const [importFrom, setImportFrom] = useState(IMPORT_FROM.JSON);
   const { saveState, setSaveState } = useSaveState();
   const { layout, setLayout } = useLayout();
   const { settings, setSettings } = useSettings();
@@ -105,6 +110,7 @@ export default function ControlPanel({
     setRelationships,
     addRelationship,
     deleteRelationship,
+    updateRelationship,
     database,
   } = useDiagram();
   const { enums, setEnums, deleteEnum, addEnum, updateEnum } = useEnums();
@@ -275,9 +281,7 @@ export default function ControlPanel({
           updateTable(a.tid, a.undo);
         }
       } else if (a.element === ObjectType.RELATIONSHIP) {
-        setRelationships((prev) =>
-          prev.map((e, idx) => (idx === a.rid ? { ...e, ...a.undo } : e)),
-        );
+        updateRelationship(a.rid, a.undo);
       } else if (a.element === ObjectType.TYPE) {
         if (a.component === "field_add") {
           updateType(a.tid, {
@@ -455,9 +459,7 @@ export default function ControlPanel({
           updateTable(a.tid, a.redo, false);
         }
       } else if (a.element === ObjectType.RELATIONSHIP) {
-        setRelationships((prev) =>
-          prev.map((e, idx) => (idx === a.rid ? { ...e, ...a.redo } : e)),
-        );
+        updateRelationship(a.rid, a.redo);
       } else if (a.element === ObjectType.TYPE) {
         if (a.component === "field_add") {
           updateType(a.tid, {
@@ -790,42 +792,66 @@ export default function ControlPanel({
             .catch(() => Toast.error(t("oops_smth_went_wrong")));
         },
       },
-      import_diagram: {
-        function: fileImport,
-        shortcut: "Ctrl+I",
+      import_from: {
+        children: [
+          {
+            function: fileImport,
+            name: "JSON",
+          },
+          {
+            function: () => {
+              setModal(MODAL.IMPORT);
+              setImportFrom(IMPORT_FROM.DBML);
+            },
+            name: "DBML",
+          },
+        ],
       },
       import_from_source: {
         ...(database === DB.GENERIC && {
           children: [
             {
-              MySQL: () => {
+              function: () => {
                 setModal(MODAL.IMPORT_SRC);
                 setImportDb(DB.MYSQL);
               },
+              name: "MySQL",
             },
             {
-              PostgreSQL: () => {
+              function: () => {
                 setModal(MODAL.IMPORT_SRC);
                 setImportDb(DB.POSTGRES);
               },
+              name: "PostgreSQL",
             },
             {
-              SQLite: () => {
+              function: () => {
                 setModal(MODAL.IMPORT_SRC);
                 setImportDb(DB.SQLITE);
               },
+              name: "SQLite",
             },
             {
-              MariaDB: () => {
+              function: () => {
                 setModal(MODAL.IMPORT_SRC);
                 setImportDb(DB.MARIADB);
               },
+              name: "MariaDB",
             },
             {
-              MSSQL: () => {
+              function: () => {
                 setModal(MODAL.IMPORT_SRC);
                 setImportDb(DB.MSSQL);
               },
+              name: "MSSQL",
+            },
+            {
+              function: () => {
+                setModal(MODAL.IMPORT_SRC);
+                setImportDb(DB.ORACLESQL);
+              },
+              name: "Oracle",
+              label: "Beta",
             },
           ],
         }),
@@ -841,7 +867,8 @@ export default function ControlPanel({
         ...(database === DB.GENERIC && {
           children: [
             {
-              MySQL: () => {
+              name: "MySQL",
+              function: () => {
                 setModal(MODAL.CODE);
                 const src = jsonToMySQL({
                   tables: tables,
@@ -857,7 +884,8 @@ export default function ControlPanel({
               },
             },
             {
-              PostgreSQL: () => {
+              name: "PostgreSQL",
+              function: () => {
                 setModal(MODAL.CODE);
                 const src = jsonToPostgreSQL({
                   tables: tables,
@@ -873,7 +901,8 @@ export default function ControlPanel({
               },
             },
             {
-              SQLite: () => {
+              name: "SQLite",
+              function: () => {
                 setModal(MODAL.CODE);
                 const src = jsonToSQLite({
                   tables: tables,
@@ -889,7 +918,8 @@ export default function ControlPanel({
               },
             },
             {
-              MariaDB: () => {
+              name: "MariaDB",
+              function: () => {
                 setModal(MODAL.CODE);
                 const src = jsonToMariaDB({
                   tables: tables,
@@ -905,9 +935,28 @@ export default function ControlPanel({
               },
             },
             {
-              MSSQL: () => {
+              name: "MSSQL",
+              function: () => {
                 setModal(MODAL.CODE);
                 const src = jsonToSQLServer({
+                  tables: tables,
+                  references: relationships,
+                  types: types,
+                  database: database,
+                });
+                setExportData((prev) => ({
+                  ...prev,
+                  data: src,
+                  extension: "sql",
+                }));
+              },
+            },
+            {
+              label: "Beta",
+              name: "Oracle",
+              function: () => {
+                setModal(MODAL.CODE);
+                const src = jsonToOracleSQL({
                   tables: tables,
                   references: relationships,
                   types: types,
@@ -943,7 +992,8 @@ export default function ControlPanel({
       export_as: {
         children: [
           {
-            PNG: () => {
+            name: "PNG",
+            function: () => {
               toPng(document.getElementById("canvas")).then(function (dataUrl) {
                 setExportData((prev) => ({
                   ...prev,
@@ -955,7 +1005,8 @@ export default function ControlPanel({
             },
           },
           {
-            JPEG: () => {
+            name: "JPEG",
+            function: () => {
               toJpeg(document.getElementById("canvas"), { quality: 0.95 }).then(
                 function (dataUrl) {
                   setExportData((prev) => ({
@@ -969,7 +1020,24 @@ export default function ControlPanel({
             },
           },
           {
-            JSON: () => {
+            name: "SVG",
+            function: () => {
+              const filter = (node) => node.tagName !== "i";
+              toSvg(document.getElementById("canvas"), { filter: filter }).then(
+                function (dataUrl) {
+                  setExportData((prev) => ({
+                    ...prev,
+                    data: dataUrl,
+                    extension: "svg",
+                  }));
+                },
+              );
+              setModal(MODAL.IMG);
+            },
+          },
+          {
+            name: "JSON",
+            function: () => {
               setModal(MODAL.CODE);
               const result = JSON.stringify(
                 {
@@ -993,22 +1061,24 @@ export default function ControlPanel({
             },
           },
           {
-            SVG: () => {
-              const filter = (node) => node.tagName !== "i";
-              toSvg(document.getElementById("canvas"), { filter: filter }).then(
-                function (dataUrl) {
-                  setExportData((prev) => ({
-                    ...prev,
-                    data: dataUrl,
-                    extension: "svg",
-                  }));
-                },
-              );
-              setModal(MODAL.IMG);
+            name: "DBML",
+            function: () => {
+              setModal(MODAL.CODE);
+              const result = toDBML({
+                tables,
+                relationships,
+                enums,
+              });
+              setExportData((prev) => ({
+                ...prev,
+                data: result,
+                extension: "dbml",
+              }));
             },
           },
           {
-            PDF: () => {
+            name: "PDF",
+            function: () => {
               const canvas = document.getElementById("canvas");
               toJpeg(canvas).then(function (dataUrl) {
                 const doc = new jsPDF("l", "px", [
@@ -1028,31 +1098,8 @@ export default function ControlPanel({
             },
           },
           {
-            DRAWDB: () => {
-              const result = JSON.stringify(
-                {
-                  author: "Unnamed",
-                  title: title,
-                  date: new Date().toISOString(),
-                  tables: tables,
-                  relationships: relationships,
-                  notes: notes,
-                  subjectAreas: areas,
-                  database: database,
-                  ...(databases[database].hasTypes && { types: types }),
-                  ...(databases[database].hasEnums && { enums: enums }),
-                },
-                null,
-                2,
-              );
-              const blob = new Blob([result], {
-                type: "text/plain;charset=utf-8",
-              });
-              saveAs(blob, `${exportData.filename}.ddb`);
-            },
-          },
-          {
-            MERMAID: () => {
+            name: "Mermaid",
+            function: () => {
               setModal(MODAL.CODE);
               const result = jsonToMermaid({
                 tables: tables,
@@ -1070,7 +1117,8 @@ export default function ControlPanel({
             },
           },
           {
-            readme: () => {
+            name: "Markdown",
+            function: () => {
               setModal(MODAL.CODE);
               const result = jsonToDocumentation({
                 tables: tables,
@@ -1214,6 +1262,18 @@ export default function ControlPanel({
         function: resetView,
         shortcut: "Ctrl+R",
       },
+      show_datatype: {
+        state: settings.showDataTypes ? (
+          <i className="bi bi-toggle-on" />
+        ) : (
+          <i className="bi bi-toggle-off" />
+        ),
+        function: () =>
+          setSettings((prev) => ({
+            ...prev,
+            showDataTypes: !prev.showDataTypes,
+          })),
+      },
       show_grid: {
         state: settings.showGrid ? (
           <i className="bi bi-toggle-on" />
@@ -1235,6 +1295,18 @@ export default function ControlPanel({
             showCardinality: !prev.showCardinality,
           })),
       },
+      show_relationship_labels: {
+        state: settings.showRelationshipLabels ? (
+          <i className="bi bi-toggle-on" />
+        ) : (
+          <i className="bi bi-toggle-off" />
+        ),
+        function: () =>
+          setSettings((prev) => ({
+            ...prev,
+            showRelationshipLabels: !prev.showRelationshipLabels,
+          })),
+      },
       show_debug_coordinates: {
         state: settings.showDebugCoordinates ? (
           <i className="bi bi-toggle-on" />
@@ -1250,7 +1322,8 @@ export default function ControlPanel({
       theme: {
         children: [
           {
-            light: () => {
+            name: t("light"),
+            function: () => {
               const body = document.body;
               if (body.hasAttribute("theme-mode")) {
                 body.setAttribute("theme-mode", "light");
@@ -1260,7 +1333,8 @@ export default function ControlPanel({
             },
           },
           {
-            dark: () => {
+            name: t("dark"),
+            function: () => {
               const body = document.body;
               if (body.hasAttribute("theme-mode")) {
                 body.setAttribute("theme-mode", "dark");
@@ -1335,12 +1409,15 @@ export default function ControlPanel({
       },
     },
     help: {
-      shortcuts: {
-        function: () => window.open("/shortcuts", "_blank"),
+      docs: {
+        function: () => window.open(`${socials.docs}`, "_blank"),
         shortcut: "Ctrl+H",
       },
+      shortcuts: {
+        function: () => window.open(`${socials.docs}/shortcuts`, "_blank"),
+      },
       ask_on_discord: {
-        function: () => window.open("https://discord.gg/BrjZgNrmR6", "_blank"),
+        function: () => window.open(socials.discord, "_blank"),
       },
       report_bug: {
         function: () => window.open("/bug-report", "_blank"),
@@ -1351,46 +1428,49 @@ export default function ControlPanel({
     },
   };
 
-  useHotkeys("ctrl+i, meta+i", fileImport, { preventDefault: true });
-  useHotkeys("ctrl+z, meta+z", undo, { preventDefault: true });
-  useHotkeys("ctrl+y, meta+y", redo, { preventDefault: true });
-  useHotkeys("ctrl+s, meta+s", save, { preventDefault: true });
-  useHotkeys("ctrl+o, meta+o", open, { preventDefault: true });
-  useHotkeys("ctrl+e, meta+e", edit, { preventDefault: true });
-  useHotkeys("ctrl+d, meta+d", duplicate, { preventDefault: true });
-  useHotkeys("ctrl+c, meta+c", copy, { preventDefault: true });
-  useHotkeys("ctrl+v, meta+v", paste, { preventDefault: true });
-  useHotkeys("ctrl+x, meta+x", cut, { preventDefault: true });
+  useHotkeys("mod+i", fileImport, { preventDefault: true });
+  useHotkeys("mod+z", undo, { preventDefault: true });
+  useHotkeys("mod+y", redo, { preventDefault: true });
+  useHotkeys("mod+s", save, { preventDefault: true });
+  useHotkeys("mod+o", open, { preventDefault: true });
+  useHotkeys("mod+e", edit, { preventDefault: true });
+  useHotkeys("mod+d", duplicate, { preventDefault: true });
+  useHotkeys("mod+c", copy, { preventDefault: true });
+  useHotkeys("mod+v", paste, { preventDefault: true });
+  useHotkeys("mod+x", cut, { preventDefault: true });
   useHotkeys("delete", del, { preventDefault: true });
-  useHotkeys("ctrl+shift+g, meta+shift+g", viewGrid, { preventDefault: true });
-  useHotkeys("ctrl+up, meta+up", zoomIn, { preventDefault: true });
-  useHotkeys("ctrl+down, meta+down", zoomOut, { preventDefault: true });
-  useHotkeys("ctrl+shift+m, meta+shift+m", viewStrictMode, {
+  useHotkeys("mod+shift+g", viewGrid, { preventDefault: true });
+  useHotkeys("mod+up", zoomIn, { preventDefault: true });
+  useHotkeys("mod+down", zoomOut, { preventDefault: true });
+  useHotkeys("mod+shift+m", viewStrictMode, {
     preventDefault: true,
   });
-  useHotkeys("ctrl+shift+f, meta+shift+f", viewFieldSummary, {
+  useHotkeys("mod+shift+f", viewFieldSummary, {
     preventDefault: true,
   });
-  useHotkeys("ctrl+shift+s, meta+shift+s", saveDiagramAs, {
+  useHotkeys("mod+shift+s", saveDiagramAs, {
     preventDefault: true,
   });
-  useHotkeys("ctrl+alt+c, meta+alt+c", copyAsImage, { preventDefault: true });
-  useHotkeys("ctrl+r, meta+r", resetView, { preventDefault: true });
-  useHotkeys("ctrl+h, meta+h", () => window.open("/shortcuts", "_blank"), {
+  useHotkeys("mod+alt+c", copyAsImage, { preventDefault: true });
+  useHotkeys("mod+r", resetView, { preventDefault: true });
+  useHotkeys("mod+h", () => window.open(socials.docs, "_blank"), {
     preventDefault: true,
   });
-  useHotkeys("ctrl+alt+w, meta+alt+w", fitWindow, { preventDefault: true });
+  useHotkeys("mod+alt+w", fitWindow, { preventDefault: true });
 
   return (
     <>
       <div>
         {layout.header && (
-          <div className="flex justify-between items-center me-7">
+          <div
+            className="flex justify-between items-center me-7"
+            style={isRtl(i18n.language) ? { direction: "rtl" } : {}}
+          >
             {header()}
             {window.name.split(" ")[0] !== "t" && (
               <Button
                 type="primary"
-                className="text-base me-2 pe-6 ps-5 py-[18px] rounded-md"
+                className="!text-base me-2 !pe-6 !ps-5 !py-[18px] !rounded-md"
                 size="default"
                 icon={<IconShareStroked />}
                 onClick={() => setModal(MODAL.SHARE)}
@@ -1410,6 +1490,7 @@ export default function ControlPanel({
         setTitle={setTitle}
         setDiagramId={setDiagramId}
         setModal={setModal}
+        importFrom={importFrom}
         importDb={importDb}
       />
       <Sidesheet
@@ -1472,7 +1553,7 @@ export default function ControlPanel({
             }
             trigger="click"
           >
-            <div className="py-1 px-2 hover-2 rounded flex items-center justify-center">
+            <div className="py-1 px-2 hover-2 rounded-sm flex items-center justify-center">
               <div className="w-[40px]">
                 {Math.floor(transform.zoom * 100)}%
               </div>
@@ -1483,7 +1564,7 @@ export default function ControlPanel({
           </Dropdown>
           <Tooltip content={t("zoom_in")} position="bottom">
             <button
-              className="py-1 px-2 hover-2 rounded text-lg"
+              className="py-1 px-2 hover-2 rounded-sm text-lg"
               onClick={() =>
                 setTransform((prev) => ({ ...prev, zoom: prev.zoom * 1.2 }))
               }
@@ -1493,7 +1574,7 @@ export default function ControlPanel({
           </Tooltip>
           <Tooltip content={t("zoom_out")} position="bottom">
             <button
-              className="py-1 px-2 hover-2 rounded text-lg"
+              className="py-1 px-2 hover-2 rounded-sm text-lg"
               onClick={() =>
                 setTransform((prev) => ({ ...prev, zoom: prev.zoom / 1.2 }))
               }
@@ -1504,7 +1585,7 @@ export default function ControlPanel({
           <Divider layout="vertical" margin="8px" />
           <Tooltip content={t("undo")} position="bottom">
             <button
-              className="py-1 px-2 hover-2 rounded flex items-center"
+              className="py-1 px-2 hover-2 rounded-sm flex items-center"
               onClick={undo}
             >
               <IconUndo
@@ -1515,7 +1596,7 @@ export default function ControlPanel({
           </Tooltip>
           <Tooltip content={t("redo")} position="bottom">
             <button
-              className="py-1 px-2 hover-2 rounded flex items-center"
+              className="py-1 px-2 hover-2 rounded-sm flex items-center"
               onClick={redo}
             >
               <IconRedo
@@ -1527,7 +1608,7 @@ export default function ControlPanel({
           <Divider layout="vertical" margin="8px" />
           <Tooltip content={t("add_table")} position="bottom">
             <button
-              className="flex items-center py-1 px-2 hover-2 rounded"
+              className="flex items-center py-1 px-2 hover-2 rounded-sm"
               onClick={() => addTable()}
             >
               <IconAddTable />
@@ -1535,7 +1616,7 @@ export default function ControlPanel({
           </Tooltip>
           <Tooltip content={t("add_area")} position="bottom">
             <button
-              className="py-1 px-2 hover-2 rounded flex items-center"
+              className="py-1 px-2 hover-2 rounded-sm flex items-center"
               onClick={() => addArea()}
             >
               <IconAddArea />
@@ -1543,7 +1624,7 @@ export default function ControlPanel({
           </Tooltip>
           <Tooltip content={t("add_note")} position="bottom">
             <button
-              className="py-1 px-2 hover-2 rounded flex items-center"
+              className="py-1 px-2 hover-2 rounded-sm flex items-center"
               onClick={() => addNote()}
             >
               <IconAddNote />
@@ -1552,7 +1633,7 @@ export default function ControlPanel({
           <Divider layout="vertical" margin="8px" />
           <Tooltip content={t("save")} position="bottom">
             <button
-              className="py-1 px-2 hover-2 rounded flex items-center"
+              className="py-1 px-2 hover-2 rounded-sm flex items-center"
               onClick={save}
             >
               <IconSaveStroked size="extra-large" />
@@ -1560,7 +1641,7 @@ export default function ControlPanel({
           </Tooltip>
           <Tooltip content={t("to_do")} position="bottom">
             <button
-              className="py-1 px-2 hover-2 rounded text-xl -mt-0.5"
+              className="py-1 px-2 hover-2 rounded-sm text-xl -mt-0.5"
               onClick={() => setSidesheet(SIDESHEET.TODO)}
             >
               <i className="fa-regular fa-calendar-check" />
@@ -1569,14 +1650,14 @@ export default function ControlPanel({
           <Divider layout="vertical" margin="8px" />
           <Tooltip content={t("theme")} position="bottom">
             <button
-              className="py-1 px-2 hover-2 rounded text-xl -mt-0.5"
+              className="py-1 px-2 hover-2 rounded-sm text-xl -mt-0.5"
               onClick={() => {
                 const body = document.body;
                 if (body.hasAttribute("theme-mode")) {
                   if (body.getAttribute("theme-mode") === "light") {
-                    menu["view"]["theme"].children[1]["dark"]();
+                    menu["view"]["theme"].children[1].function();
                   } else {
-                    menu["view"]["theme"].children[0]["light"]();
+                    menu["view"]["theme"].children[0].function();
                   }
                 }
               }}
@@ -1675,7 +1756,7 @@ export default function ControlPanel({
                           if (menu[category][item].children) {
                             return (
                               <Dropdown
-                                style={{ width: "120px" }}
+                                style={{ width: "150px" }}
                                 key={item}
                                 position="rightTop"
                                 render={
@@ -1684,9 +1765,18 @@ export default function ControlPanel({
                                       (e, i) => (
                                         <Dropdown.Item
                                           key={i}
-                                          onClick={Object.values(e)[0]}
+                                          onClick={e.function}
+                                          className="flex justify-between"
                                         >
-                                          {t(Object.keys(e)[0])}
+                                          <span>{e.name}</span>
+                                          {e.label && (
+                                            <Tag
+                                              size="small"
+                                              color="light-blue"
+                                            >
+                                              {e.label}
+                                            </Tag>
+                                          )}
                                         </Dropdown.Item>
                                       ),
                                     )}
@@ -1757,7 +1847,7 @@ export default function ControlPanel({
                       </Dropdown.Menu>
                     }
                   >
-                    <div className="px-3 py-1 hover-2 rounded">
+                    <div className="px-3 py-1 hover-2 rounded-sm">
                       {t(category)}
                     </div>
                   </Dropdown>
